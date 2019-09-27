@@ -25,7 +25,10 @@ impl Selector {
         // According to libuv `EPOLL_CLOEXEC` is not defined on Android API <
         // 21. But `EPOLL_CLOEXEC` is an alias for `O_CLOEXEC` on all platforms,
         // so we use that instead.
-        syscall!(epoll_create1(libc::O_CLOEXEC)).map(|ep| Selector {
+        let ep = syscall!(epoll_create(libc::O_CLOEXEC))?;
+        let flags = syscall!(fcntl(ep, libc::F_GETFD))?;
+        syscall!(fcntl(ep, libc::F_SETFD, flags | libc::FD_CLOEXEC))?;
+        Ok(Selector {
             #[cfg(debug_assertions)]
             id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
             ep,
